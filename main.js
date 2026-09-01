@@ -1,12 +1,13 @@
 /* ═══════════════════════════════════════════════════════════════
-   ODONTOCLINIC LONDRINA — js/main.js
-   Inventário fechado (briefing 8.2). Seis funções, nada além disso:
+   ODONTOCLINIC LONDRINA — main.js
+   Sete funções, nada além disso:
      1. IntersectionObserver do filete de assinatura e dos [data-reveal]
-     2. Menu mobile (abrir/fechar, Esc, clique fora, foco preso)
+     2. Menu mobile (abrir/fechar com transição, Esc, clique fora, foco preso)
      3. Encolhimento do cabeçalho no scroll
      4. Validação + envio assíncrono do formulário
      5. Ano do rodapé
      6. Expandir citações extras no mobile
+     7. Abertura e fechamento suaves do FAQ (Web Animations API)
    Sem bibliotecas. Sem CDN.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
@@ -58,9 +59,15 @@
     var focaveis = 'a[href], button:not([disabled])';
     var ultimoFoco = null;
 
+    var fechando = null;
+
     function abrir() {
+      if (fechando) { clearTimeout(fechando); fechando = null; }
       ultimoFoco = document.activeElement;
       painel.hidden = false;
+      // reflow síncrono para o navegador registrar o estado inicial da transição
+      void painel.offsetHeight;
+      painel.classList.add('is-aberto');
       botao.setAttribute('aria-expanded', 'true');
       document.body.style.setProperty('overflow', 'hidden');
       fechar.focus();
@@ -69,12 +76,17 @@
     }
 
     function encerrar() {
-      painel.hidden = true;
+      painel.classList.remove('is-aberto');
       botao.setAttribute('aria-expanded', 'false');
       document.body.style.removeProperty('overflow');
       document.removeEventListener('keydown', tecla, true);
       document.removeEventListener('pointerdown', foraDoPainel, true);
       if (ultimoFoco) ultimoFoco.focus();
+      // esconde após a transição (fallback por tempo cobre reduced-motion)
+      fechando = window.setTimeout(function () {
+        painel.hidden = true;
+        fechando = null;
+      }, semMovimento ? 0 : 260);
     }
 
     function tecla(ev) {
@@ -155,7 +167,7 @@
       var tel = campos[1];
       var telDig = digitos(tel.el.value);
       if (telDig.length === 0) {
-        marcar(tel, true, 'Sem telefone a gente não consegue retornar.');
+        marcar(tel, true, 'Informe um telefone com DDD para que nossa equipe possa retornar.');
         if (!primeiroInvalido) primeiroInvalido = tel.el;
       } else if (telDig.length < 10 || telDig.length > 11) {
         marcar(tel, true, 'Confira o número — parece que faltou um dígito.');
@@ -166,7 +178,7 @@
 
       var msg = campos[2];
       var msgVazia = msg.el.value.trim() === '';
-      marcar(msg, msgVazia, 'Conte em uma linha o que está acontecendo.');
+      marcar(msg, msgVazia, 'Conte brevemente como podemos ajudar.');
       if (msgVazia && !primeiroInvalido) primeiroInvalido = msg.el;
 
       var ok = campos[3];
@@ -204,13 +216,13 @@
           campos.forEach(function (c) { marcar(c, false); });
           status.textContent = '';
           var p = document.createElement('p');
-          p.textContent = 'Recebido. A recepção retorna no próximo horário de atendimento — segunda a sexta das 9h às 19h, sábado das 8h ao meio-dia.';
+          p.textContent = 'Mensagem recebida. Nossa equipe entrará em contato no próximo horário de atendimento — de segunda a sexta das 9h às 19h e aos sábados das 8h às 12h.';
           status.appendChild(p);
         })
         .catch(function () {
           status.textContent = '';
           var p = document.createElement('p');
-          p.textContent = 'Não conseguimos enviar agora. Chame no WhatsApp que a gente responde mais rápido mesmo.';
+          p.textContent = 'Não foi possível enviar o formulário neste momento. Se preferir, fale diretamente conosco pelo WhatsApp.';
           var a = document.createElement('a');
           a.className = 'btn btn--contorno';
           a.href = whatsFalha;
@@ -243,6 +255,72 @@
     botao.addEventListener('click', function () {
       parede.classList.add('is-aberta');
       botao.hidden = true;
+    });
+  })();
+
+  /* ── 7. FAQ com abertura e fechamento suaves ──────────────── */
+  /* <details> alterna o estado nativo de forma imediata; aqui a
+     altura real da resposta é medida e animada com a Web Animations
+     API. Enter/Space no <summary> disparam "click", então teclado e
+     mouse passam pelo mesmo caminho. Com prefers-reduced-motion ou
+     sem suporte a .animate(), o comportamento nativo é preservado. */
+  (function faqSuave() {
+    var itens = document.querySelectorAll('.faq .qa');
+    if (!itens.length) return;
+    if (semMovimento || !('animate' in Element.prototype)) return;
+
+    var DUR_ABRE = 300;
+    var DUR_FECHA = 240;
+    var EASE = 'cubic-bezier(.22,.61,.36,1)';
+
+    itens.forEach(function (qa) {
+      var resumo = qa.querySelector('summary');
+      var resposta = qa.querySelector('.qa__r');
+      if (!resumo || !resposta) return;
+
+      var animando = false;
+
+      resumo.addEventListener('click', function (ev) {
+        ev.preventDefault();               // assume o controle da alternância
+        if (animando) return;              // ignora cliques durante a animação
+        if (qa.open) fecharSuave(); else abrirSuave();
+      });
+
+      function abrirSuave() {
+        animando = true;
+        qa.open = true;                    // agora o navegador conhece a altura final
+        var altura = resposta.scrollHeight;
+        resposta.style.overflow = 'hidden';
+        var anim = resposta.animate(
+          [
+            { height: '0px', opacity: 0, transform: 'translateY(-4px)' },
+            { height: altura + 'px', opacity: 1, transform: 'none' }
+          ],
+          { duration: DUR_ABRE, easing: EASE }
+        );
+        anim.onfinish = anim.oncancel = function () {
+          resposta.style.overflow = '';
+          animando = false;
+        };
+      }
+
+      function fecharSuave() {
+        animando = true;
+        var altura = resposta.scrollHeight;
+        resposta.style.overflow = 'hidden';
+        var anim = resposta.animate(
+          [
+            { height: altura + 'px', opacity: 1 },
+            { height: '0px', opacity: 0 }
+          ],
+          { duration: DUR_FECHA, easing: EASE }
+        );
+        anim.onfinish = anim.oncancel = function () {
+          resposta.style.overflow = '';
+          qa.open = false;                 // só conclui o estado após a animação
+          animando = false;
+        };
+      }
     });
   })();
 

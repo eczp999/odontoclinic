@@ -165,6 +165,7 @@ p{ max-width:var(--measure); }
 }
 .btn .ico{ flex:none; }
 .btn--largo{ width:100%; }
+.btn:hover{ transform:translateY(-1px); }
 
 .btn--primario{ background:var(--tinta); color:var(--papel); }
 .btn--primario:hover{ background:var(--ouro); color:var(--tinta); }
@@ -280,7 +281,10 @@ p{ max-width:var(--measure); }
   display:flex; flex-direction:column;
   padding-block:var(--sp-5) var(--sp-8);
   overflow-y:auto;
+  opacity:0; transform:translateX(2rem);
+  transition:opacity 240ms var(--ease), transform 240ms var(--ease-out);
 }
+.painel.is-aberto{ opacity:1; transform:none; }
 .painel[hidden]{ display:none; }
 .painel__topo{ display:flex; align-items:center; justify-content:space-between; }
 .painel__rotulo{ color:var(--papel-75); }
@@ -327,21 +331,29 @@ p{ max-width:var(--measure); }
 .heroi__acao .btn,
 .heroi__nota{ white-space:nowrap; }
 
-.heroi__imgA{ margin-top:var(--sp-7); }
-.heroi__imgA img{
-  width:100%; height:auto; aspect-ratio:4/5; object-fit:cover; object-position:center 20%;
-  border-radius:var(--r-img);
-  filter:grayscale(1) contrast(1.05);
-  mix-blend-mode:luminosity;
+/* Composição visual do herói: painel de fundo + retrato recortado
+   (img-1951.webp tem fundo transparente) + card de prova social.
+   No mobile o card fica abaixo do painel; no desktop ele se sobrepõe
+   à base da composição (ver breakpoint 1024). */
+.heroi__visual{ margin-top:var(--sp-7); position:relative; }
+.heroi__retrato{
+  background:var(--areia);
+  border-radius:var(--r-md);
+  padding:clamp(1.5rem, 5vw, 2.5rem) clamp(1rem, 3vw, 2rem) 0;
+  display:flex; align-items:flex-end; justify-content:center;
+  overflow:hidden;
 }
-.heroi__imgB{ display:none; }
+.heroi__retrato img{
+  width:min(100%, 520px); height:auto; display:block;
+}
 .heroi__cit{
-  background:var(--areia); color:var(--tinta);
-  border-radius:var(--r-img); padding:var(--sp-6);
-  height:100%; display:flex; flex-direction:column; justify-content:flex-end;
+  background:var(--papel); color:var(--tinta);
+  border-radius:var(--r-md); padding:var(--sp-5);
+  box-shadow:var(--shadow-1);
+  margin-top:var(--sp-4);
 }
-.heroi__cit p{ font-size:var(--fs-h3); font-weight:500; line-height:var(--lh-head); }
-.heroi__cit footer{ margin-top:var(--sp-5); color:var(--tinta-70); }
+.heroi__cit p{ font-size:var(--fs-body); font-weight:500; line-height:var(--lh-lead); }
+.heroi__cit footer{ margin-top:var(--sp-4); color:var(--tinta-70); }
 
 /* ═══ 6.3 FAIXA DE CREDIBILIDADE ══════════════════════════════ */
 .fatos{ padding-block:var(--sp-8); }
@@ -516,9 +528,9 @@ p{ max-width:var(--measure); }
 .qa summary::-webkit-details-marker{ display:none; }
 .qa__q{ font-size:1.25rem; font-weight:600; line-height:var(--lh-head); }
 .qa__sinal{ flex:none; color:var(--ouro); display:grid; place-items:center; }
-.qa .ico--menos{ display:none; }
-.qa[open] .ico--mais{ display:none; }
-.qa[open] .ico--menos{ display:block; }
+/* um único "+" que gira 45° ao abrir — transição contínua, sem troca de SVG */
+.qa__sinal .ico{ transition:transform 240ms var(--ease); }
+.qa[open] .qa__sinal .ico{ transform:rotate(45deg); }
 .qa__r{ padding-bottom:20px; }
 .qa__r p + p{ margin-top:var(--sp-4); }
 
@@ -540,6 +552,8 @@ p{ max-width:var(--measure); }
 .campo input:hover,.campo textarea:hover{ border-color:var(--ouro); }
 .campo [aria-invalid="true"]{ border-color:var(--bronze); border-width:2px; }
 .erro{ font-size:var(--fs-sm); font-weight:500; color:var(--bronze); }
+.erro:not([hidden]){ animation:surgir 200ms var(--ease); }
+@keyframes surgir{ from{ opacity:0; transform:translateY(-2px); } }
 
 .check{ display:flex; align-items:flex-start; gap:var(--sp-3); font-weight:400 !important; cursor:pointer; }
 /* o alvo de toque do consentimento é o <label> inteiro, que envolve o input */
@@ -552,6 +566,7 @@ p{ max-width:var(--measure); }
 .form__status{
   background:var(--papel); border:var(--hair-ouro); border-radius:var(--r-sm);
   padding:var(--sp-4);
+  animation:surgir var(--dur) var(--ease);
 }
 .form__status p{ font-size:var(--fs-sm); }
 .form__status .btn{ margin-top:var(--sp-4); }
@@ -643,13 +658,22 @@ p{ max-width:var(--measure); }
 
 @media (min-width:1024px){
   .heroi__grid{
-    display:grid; grid-template-columns:repeat(12,1fr); gap:var(--sp-5);
-    align-items:start;
+    display:grid; grid-template-columns:repeat(12,1fr); gap:var(--sp-6);
+    align-items:center;
   }
-  .heroi__texto{ grid-column:1 / span 5; }
-  .heroi__imgA{ grid-column:7 / span 3; margin-top:0; }
-  .heroi__imgB{ display:block; grid-column:10 / span 3; margin-top:64px; }
-  .heroi__imgB .heroi__cit{ aspect-ratio:3/4; }
+  .heroi__texto{ grid-column:1 / span 6; }
+  .heroi__visual{ grid-column:7 / span 6; margin-top:0; }
+  .heroi__retrato{
+    padding:clamp(2rem, 3.5vw, 3.25rem) clamp(1.25rem, 2.5vw, 2.5rem) 0;
+    justify-content:flex-end;
+  }
+  .heroi__retrato img{ width:min(86%, 560px); }
+  /* card sobreposto à base da composição, dentro dos limites do painel */
+  .heroi__cit{
+    position:absolute; left:clamp(1rem, 2vw, 1.5rem); bottom:clamp(1rem, 2vw, 1.5rem);
+    width:min(320px, 55%);
+    margin-top:0;
+  }
 
   .parede{ columns:3; }
 }
