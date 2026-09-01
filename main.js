@@ -4,10 +4,11 @@
      1. IntersectionObserver do filete de assinatura e dos [data-reveal]
      2. Menu mobile (abrir/fechar com transição, Esc, clique fora, foco preso)
      3. Encolhimento do cabeçalho no scroll
-     4. Validação + envio assíncrono do formulário
+     4. Formulário → monta mensagem personalizada e abre o WhatsApp
      5. Ano do rodapé
      6. Expandir citações extras no mobile
      7. Abertura e fechamento suaves do FAQ (Web Animations API)
+     8. Carrossel de tratamentos (setas, indicador de posição)
    Sem bibliotecas. Sem CDN.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
@@ -132,21 +133,42 @@
     medir();
   })();
 
-  /* ── 4. Formulário ────────────────────────────────────────── */
+  /* ── 4. Formulário → mensagem personalizada no WhatsApp ───── */
+  /* O formulário não envia nada em segundo plano: monta a mensagem
+     com os dados preenchidos e leva o visitante ao WhatsApp, onde
+     ele revisa e envia por conta própria. */
   (function formulario() {
     var form = document.getElementById('form');
     if (!form) return;
 
-    var status = document.getElementById('status');
-    var botao = document.getElementById('enviar');
-    var whatsFalha = 'https://wa.me/5543999189768?text=Ol%C3%A1!%20Tentei%20enviar%20o%20formul%C3%A1rio%20do%20site%20e%20n%C3%A3o%20consegui.%20Gostaria%20de%20falar%20com%20voc%C3%AAs.';
+    var WHATS_NUMERO = '5543999189768';
+
+    /* Sincronizar com os cards do carrossel (seção 6.7 do index.html)
+       e com o <select> do formulário. A chave é o value da <option>;
+       o texto é a frase natural que entra na mensagem. */
+    var FRASES_SERVICO = {
+      'canal':           'tenho interesse em tratamento de canal',
+      'aparelhos':       'tenho interesse em tratamento com aparelho ortodôntico',
+      'alinhadores':     'tenho interesse em alinhadores transparentes',
+      'implantes':       'tenho interesse em implantes dentários',
+      'lentes':          'tenho interesse em lentes de contato dental',
+      'toxina':          'tenho interesse na aplicação de toxina botulínica',
+      'clareamento':     'tenho interesse em clareamento dental',
+      'proteses':        'tenho interesse em próteses dentárias',
+      'siso':            'gostaria de uma avaliação para extração de siso',
+      'odontopediatria': 'tenho interesse no atendimento odontopediátrico',
+      'restauracoes':    'tenho interesse em restaurações dentárias',
+      'clinico-geral':   'gostaria de agendar uma avaliação odontológica',
+      'avaliacao':       'gostaria de agendar uma avaliação para entender qual tratamento é mais indicado para mim'
+    };
 
     var campos = [
       { el: document.getElementById('nome'),     erro: document.getElementById('erro-nome') },
       { el: document.getElementById('telefone'), erro: document.getElementById('erro-telefone') },
-      { el: document.getElementById('mensagem'), erro: document.getElementById('erro-mensagem') },
-      { el: document.getElementById('consent'),  erro: document.getElementById('erro-consent') }
+      { el: document.getElementById('servico'),  erro: document.getElementById('erro-servico') },
+      { el: document.getElementById('mensagem'), erro: document.getElementById('erro-mensagem') }
     ];
+    var obs = document.getElementById('obs');
 
     function marcar(campo, invalido, texto) {
       campo.el.setAttribute('aria-invalid', invalido ? 'true' : 'false');
@@ -156,18 +178,24 @@
 
     function digitos(v) { return (v || '').replace(/\D/g, ''); }
 
+    function formatarTelefone(d) {
+      return d.length === 11
+        ? '(' + d.slice(0, 2) + ') ' + d.slice(2, 7) + '-' + d.slice(7)
+        : '(' + d.slice(0, 2) + ') ' + d.slice(2, 6) + '-' + d.slice(6);
+    }
+
     function validar() {
       var primeiroInvalido = null;
 
       var nome = campos[0];
       var nomeVazio = nome.el.value.trim() === '';
-      marcar(nome, nomeVazio, 'Escreva seu nome, por favor.');
+      marcar(nome, nomeVazio, 'Informe seu nome.');
       if (nomeVazio && !primeiroInvalido) primeiroInvalido = nome.el;
 
       var tel = campos[1];
       var telDig = digitos(tel.el.value);
       if (telDig.length === 0) {
-        marcar(tel, true, 'Informe um telefone com DDD para que nossa equipe possa retornar.');
+        marcar(tel, true, 'Informe um telefone com DDD.');
         if (!primeiroInvalido) primeiroInvalido = tel.el;
       } else if (telDig.length < 10 || telDig.length > 11) {
         marcar(tel, true, 'Confira o número — parece que faltou um dígito.');
@@ -176,15 +204,15 @@
         marcar(tel, false);
       }
 
-      var msg = campos[2];
+      var srv = campos[2];
+      var semServico = !srv.el.value || !FRASES_SERVICO[srv.el.value];
+      marcar(srv, semServico, 'Selecione um tratamento ou escolha a opção de avaliação.');
+      if (semServico && !primeiroInvalido) primeiroInvalido = srv.el;
+
+      var msg = campos[3];
       var msgVazia = msg.el.value.trim() === '';
       marcar(msg, msgVazia, 'Conte brevemente como podemos ajudar.');
       if (msgVazia && !primeiroInvalido) primeiroInvalido = msg.el;
-
-      var ok = campos[3];
-      var semConsent = !ok.el.checked;
-      marcar(ok, semConsent, 'Precisamos da sua autorização para poder te ligar.');
-      if (semConsent && !primeiroInvalido) primeiroInvalido = ok.el;
 
       return primeiroInvalido;
     }
@@ -199,43 +227,35 @@
       });
     });
 
+    function montarMensagem() {
+      var nome = campos[0].el.value.trim();
+      var telefone = formatarTelefone(digitos(campos[1].el.value));
+      var frase = FRASES_SERVICO[campos[2].el.value];
+      var mensagem = campos[3].el.value.trim();
+      var observacoes = obs ? obs.value.trim() : '';
+
+      var linhas = [
+        'Olá! Vim pelo site da Odontoclinic Londrina e gostaria de falar com vocês.',
+        '',
+        'Meu nome é ' + nome + ' e ' + frase + '.',
+        '',
+        mensagem
+      ];
+      if (observacoes) {
+        linhas.push('', 'Observações: ' + observacoes);
+      }
+      linhas.push('', 'Meu telefone para contato é ' + telefone + '.');
+      return linhas.join('\n');
+    }
+
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
-      status.textContent = '';
 
       var invalido = validar();
       if (invalido) { invalido.focus(); return; }
 
-      botao.disabled = true;
-      botao.textContent = 'Enviando…';
-
-      fetch(form.action, { method: 'POST', body: new FormData(form) })
-        .then(function (r) {
-          if (!r.ok) throw new Error('resposta ' + r.status);
-          form.reset();
-          campos.forEach(function (c) { marcar(c, false); });
-          status.textContent = '';
-          var p = document.createElement('p');
-          p.textContent = 'Mensagem recebida. Nossa equipe entrará em contato no próximo horário de atendimento — de segunda a sexta das 9h às 19h e aos sábados das 8h às 12h.';
-          status.appendChild(p);
-        })
-        .catch(function () {
-          status.textContent = '';
-          var p = document.createElement('p');
-          p.textContent = 'Não foi possível enviar o formulário neste momento. Se preferir, fale diretamente conosco pelo WhatsApp.';
-          var a = document.createElement('a');
-          a.className = 'btn btn--contorno';
-          a.href = whatsFalha;
-          a.target = '_blank';
-          a.rel = 'noopener';
-          a.textContent = 'Abrir WhatsApp';
-          status.appendChild(p);
-          status.appendChild(a);
-        })
-        .then(function () {
-          botao.disabled = false;
-          botao.textContent = 'Enviar';
-        });
+      var url = 'https://wa.me/' + WHATS_NUMERO + '?text=' + encodeURIComponent(montarMensagem());
+      window.location.assign(url);
     });
   })();
 
@@ -322,6 +342,59 @@
         };
       }
     });
+  })();
+
+  /* ── 8. Carrossel de tratamentos ──────────────────────────── */
+  /* Rolagem nativa com scroll-snap; aqui só as setas, o estado
+     habilitado/desabilitado nas pontas e o indicador "01 / 12".
+     Sem autoplay: o carrossel só se move por decisão do visitante. */
+  (function tratamentos() {
+    var pista = document.getElementById('trat-pista');
+    if (!pista) return;
+    var ant = document.getElementById('trat-ant');
+    var prox = document.getElementById('trat-prox');
+    var pos = document.getElementById('trat-pos');
+    var cards = pista.querySelectorAll('.tcard');
+    var total = cards.length;
+
+    function passo() {
+      if (!cards.length) return 0;
+      var gap = parseFloat(getComputedStyle(pista).columnGap) || 0;
+      return cards[0].getBoundingClientRect().width + gap;
+    }
+
+    function atualizar() {
+      var p = passo();
+      var indice = p ? Math.min(total, Math.round(pista.scrollLeft / p) + 1) : 1;
+      if (pos) {
+        pos.textContent =
+          String(indice).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+      }
+      var fim = pista.scrollWidth - pista.clientWidth - 1;
+      if (ant) ant.disabled = pista.scrollLeft <= 1;
+      if (prox) prox.disabled = pista.scrollLeft >= fim;
+    }
+
+    function rolar(direcao) {
+      var alvo = Math.max(0, Math.min(
+        pista.scrollLeft + direcao * passo(),
+        pista.scrollWidth - pista.clientWidth
+      ));
+      pista.scrollTo({ left: alvo, behavior: semMovimento ? 'auto' : 'smooth' });
+      // salvaguarda: se a rolagem suave não andou (ambiente sem animação),
+      // aplica o destino diretamente e atualiza o indicador
+      window.setTimeout(function () {
+        if (Math.abs(pista.scrollLeft - alvo) > passo() * 0.5) pista.scrollLeft = alvo;
+        atualizar();
+      }, 420);
+    }
+
+    if (ant) ant.addEventListener('click', function () { rolar(-1); });
+    if (prox) prox.addEventListener('click', function () { rolar(1); });
+
+    pista.addEventListener('scroll', atualizar, { passive: true });
+    window.addEventListener('resize', atualizar);
+    atualizar();
   })();
 
 })();

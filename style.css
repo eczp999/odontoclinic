@@ -381,7 +381,6 @@ p{ max-width:var(--measure); }
 .cit--extra{ display:none; }
 .parede.is-aberta .cit--extra{ display:block; }
 .parede__mais{ margin-top:var(--sp-2); }
-.vozes__acao{ margin-top:var(--sp-6); max-width:none; }
 
 /* ═══ 6.5 IMPLANTES — DIABETES E HIPERTENSÃO ══════════════════ */
 .caso{ background:var(--bronze); color:var(--papel); padding-block:var(--section-y); }
@@ -419,37 +418,61 @@ p{ max-width:var(--measure); }
   max-width:none;
 }
 
-/* ═══ 6.7 ESPECIALIDADES ══════════════════════════════════════ */
-.espec{ padding-block:var(--section-y) 0; }
-.bloco{ display:grid; gap:var(--sp-6); padding-bottom:var(--section-y); }
-.bloco__texto p{ margin-bottom:var(--sp-5); }
-/* As duas fotos são artes de post 1080×1080 com o nome do tratamento
-   queimado dentro do JPG (auditoria nº 20). O corte 3:2 sozinho não tira
-   o letreiro: é preciso ampliar e recortar. A figura clipa, a imagem
-   amplia a partir de uma origem calculada para cair entre o fim do
-   letreiro e a faixa branca do rodapé da arte. */
-.bloco__fig{ overflow:hidden; border-radius:var(--r-img); }
-.bloco__fig img{
-  width:100%; height:auto; aspect-ratio:3/2; object-fit:cover;
-  filter:saturate(.85);
+/* ═══ 6.7 TRATAMENTOS — carrossel horizontal ══════════════════ */
+/* Sem bibliotecas: overflow-x + scroll-snap; JS só para setas e
+   indicador de posição. Sem autoplay. */
+.trat{ padding-block:var(--section-y); }
+.trat__topo{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:var(--sp-4); margin-top:var(--sp-6);
 }
-.bloco__fig--canal img{ transform:scale(1.6); transform-origin:center 69%; }
-.bloco__fig--orto img{ transform:scale(1.9); transform-origin:center 61%; }
-.bloco--invertido .bloco__fig{ order:-1; }
+.trat__dica{ color:var(--tinta-70); }
+.trat__controles{ display:flex; align-items:center; gap:var(--sp-4); margin-left:auto; }
+.trat__pos{ color:var(--tinta-70); min-width:6ch; text-align:center; white-space:nowrap; }
+.trat__seta{
+  display:none; /* mobile navega por gesto */
+  width:44px; height:44px; place-items:center;
+  background:transparent; color:var(--tinta);
+  border:var(--hair-ouro); border-radius:var(--r-pill);
+  cursor:pointer;
+  transition:background-color var(--dur-fast) var(--ease),
+             opacity var(--dur-fast) var(--ease),
+             transform var(--dur-fast) var(--ease);
+}
+.trat__seta:hover{ background:var(--ouro); transform:translateY(-1px); }
+.trat__seta:active{ transform:translateY(1px); }
+.trat__seta[disabled]{ opacity:.35; cursor:default; pointer-events:none; }
 
-.tudo{ background:var(--areia); padding-block:var(--section-y); }
-.cardapio{ margin-top:var(--sp-6); }
-.cardapio li{ border-top:var(--hair); }
-.cardapio li:last-child{ border-bottom:var(--hair); }
-.cardapio a{
-  display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4);
-  min-height:56px; padding:var(--sp-3) 0;
-  font-weight:500; text-decoration:none;
-  transition:color var(--dur-fast) var(--ease);
+.trat__pista{
+  display:flex; gap:var(--sp-5);
+  margin-top:var(--sp-5);
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;              /* sem scrollbar grosseira */
+  padding-bottom:var(--sp-2);
 }
-.cardapio a .ico{ flex:none; color:var(--ouro); transition:transform var(--dur-fast) var(--ease); }
-.cardapio a:hover{ color:var(--bronze); }
-.cardapio a:hover .ico{ transform:translateX(4px); }
+.trat__pista::-webkit-scrollbar{ display:none; }
+
+.tcard{
+  flex:0 0 88%;                       /* mobile: 88% + espiada no próximo */
+  scroll-snap-align:start;
+  background:var(--areia); border:var(--hair); border-radius:var(--r-md);
+  padding:var(--sp-6);
+  display:flex; flex-direction:column;
+  transition:transform var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease);
+}
+.tcard:hover{ transform:translateY(-2px); border-color:var(--ouro); box-shadow:var(--shadow-1); }
+.tcard__num{
+  font-size:clamp(2rem, 3vw, 2.75rem); line-height:1;
+  color:var(--ouro); margin-bottom:var(--sp-4);
+}
+.tcard__cat{ color:var(--tinta-70); margin-bottom:var(--sp-2); }
+.tcard__t{ font-size:var(--fs-h3); font-weight:600; line-height:var(--lh-head); }
+.tcard__d{ margin-top:var(--sp-3); margin-bottom:var(--sp-5); font-size:var(--fs-sm); line-height:var(--lh-body); }
+.tcard__cta{ margin-top:auto; align-self:flex-start; }
 
 /* ═══ 6.8 AS IRMÃS SCHELL ═════════════════════════════════════ */
 .irmas{ background:var(--bronze); color:var(--papel); padding-block:var(--section-y); }
@@ -549,27 +572,28 @@ p{ max-width:var(--measure); }
   min-height:48px;
 }
 .campo textarea{ resize:vertical; line-height:var(--lh-body); }
-.campo input:hover,.campo textarea:hover{ border-color:var(--ouro); }
+/* o <select> recebe o mesmo acabamento dos inputs, com seta própria */
+.campo select{
+  width:100%; padding:var(--sp-3) var(--sp-4); min-height:48px;
+  background:var(--papel);
+  border:var(--hair); border-radius:var(--r-sm);
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23C98F3F' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center;
+  padding-right:44px;
+  cursor:pointer;
+}
+.campo__opcional{
+  font-weight:500; font-size:var(--fs-micro); color:var(--tinta-70);
+  text-transform:uppercase; letter-spacing:.06em; margin-left:var(--sp-2);
+}
+.campo input:hover,.campo textarea:hover,.campo select:hover{ border-color:var(--ouro); }
 .campo [aria-invalid="true"]{ border-color:var(--bronze); border-width:2px; }
 .erro{ font-size:var(--fs-sm); font-weight:500; color:var(--bronze); }
 .erro:not([hidden]){ animation:surgir 200ms var(--ease); }
 @keyframes surgir{ from{ opacity:0; transform:translateY(-2px); } }
 
-.check{ display:flex; align-items:flex-start; gap:var(--sp-3); font-weight:400 !important; cursor:pointer; }
-/* o alvo de toque do consentimento é o <label> inteiro, que envolve o input */
-.check{ min-height:44px; }
-.check input{ width:24px; height:24px; margin-top:.15em; flex:none; accent-color:var(--bronze); }
-.check span{ font-size:var(--fs-sm); }
-
 .form__privacidade{ font-size:var(--fs-sm); color:var(--tinta-70); max-width:var(--measure); }
-.form__status:empty{ display:none; }
-.form__status{
-  background:var(--papel); border:var(--hair-ouro); border-radius:var(--r-sm);
-  padding:var(--sp-4);
-  animation:surgir var(--dur) var(--ease);
-}
-.form__status p{ font-size:var(--fs-sm); }
-.form__status .btn{ margin-top:var(--sp-4); }
 
 /* ═══ 6.12 RODAPÉ ═════════════════════════════════════════════ */
 .rodape{
@@ -639,12 +663,12 @@ p{ max-width:var(--measure); }
   .passos{ grid-column:2; margin-top:0; }
   .caso__pe{ grid-column:1 / -1; }
 
-  .bloco{ grid-template-columns:1fr 1fr; align-items:center; gap:var(--sp-8); }
-  .bloco--invertido .bloco__fig{ order:0; }
-  .bloco--invertido .bloco__texto{ order:1; }
+  .trat__dica{ display:none; }
+  .trat__seta{ display:grid; }
+  .tcard{ flex-basis:calc((100% - var(--sp-5)) / 2); }
 
-  .cardapio{ columns:2; column-gap:var(--sp-7); }
-  .cardapio li{ break-inside:avoid; }
+  .form{ grid-template-columns:1fr 1fr; }
+  .campo--largo{ grid-column:1 / -1; }
 
   .socias{ gap:var(--sp-8); }
 
@@ -676,6 +700,8 @@ p{ max-width:var(--measure); }
   }
 
   .parede{ columns:3; }
+
+  .tcard{ flex-basis:calc((100% - 2*var(--sp-5)) / 3); }
 }
 
 @media (min-width:1440px){
